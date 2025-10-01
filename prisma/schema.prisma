@@ -1,15 +1,106 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ProductCategory {
+  FRUIT
+  VEGETABLE
+  DAIRY
+  MEAT
+}
+
+enum OrderStatus {
+  PENDING
+  CANCELLED
+  REFUNDED
+  COMPLETE
+}
+
+model User {
+  id           Int               @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  email        String            @unique
+  phoneNumber  String
+  role         UserRole          @default(USER)
+  addresses    DeliveryAddress[]
+  orders       Order[]
+  cart         Cart?
+}
+
+model DeliveryAddress {
+  id           Int      @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       Int
+  street       String
+  aptNumber    String?
+  city         String
+  stateCode    String   @db.VarChar(2)
+  postalCode   String
+}
+
+model Product {
+  id              Int              @id @default(autoincrement())
+  name            String
+  description     String
+  category        ProductCategory
+  pricePerUnit    Decimal          @db.Decimal(10,2)
+  weightPerUnit   Decimal          @db.Decimal(10,3)
+  quantityOnHand  Int
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+}
+
+model Cart {
+  id           Int        @id @default(autoincrement())
+  user         User       @relation(fields: [userId], references: [id])
+  userId       Int        @unique
+  cartItems    CartItem[]
+  order        Order?
+}
+
+model CartItem {
+  id         Int      @id @default(autoincrement())
+  cart       Cart     @relation(fields: [cartId], references: [id])
+  cartId     Int
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  Int
+  quantity   Int
+  @@unique([cartId, productId])
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  delivery     Delivery?   @relation(fields: [deliveryId], references: [id])
+  deliveryId   Int?
+  user         User        @relation(fields: [userId], references: [id])
+  userId       Int
+  status       OrderStatus @default(PENDING)
+  cart         Cart        @relation(fields: [cartId], references: [id])
+  cartId       Int         @unique
+  orderItems  OrderItem[]
+}
+
+model OrderItem {
+  id           Int      @id @default(autoincrement())
+  order        Order    @relation(fields: [orderId], references: [id])
+  orderId      Int
+  product      Product  @relation(fields: [productId], references: [id])
+  productId    Int
+  quantity     Int
+}
+
+model Delivery {
+  id           Int      @id @default(autoincrement())
+  orders       Order[]
 }
