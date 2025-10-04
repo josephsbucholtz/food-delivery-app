@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
         
 
@@ -29,21 +28,31 @@ enum OrderStatus {
 }
 
 model User {
-  id           Int               @id @default(autoincrement())
-  firstName    String
-  lastName     String
-  email        String            @unique
-  phoneNumber  String
-  role         UserRole          @default(USER)
-  addresses    DeliveryAddress[]
-  orders       Order[]
-  cart         Cart?
+  id            String            @id @default(cuid())
+  firstName     String?
+  lastName      String?
+  email         String            @unique
+  phoneNumber   String?
+  role          UserRole          @default(USER)
+  addresses     DeliveryAddress[]
+  orders        Order[]
+  cart          Cart?
+  
+  // NextAuth fields
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  accounts      Account[]
+  sessions      Session[]
+  
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @default(now()) @updatedAt
 }
 
 model DeliveryAddress {
   id           Int      @id @default(autoincrement())
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId       Int
+  userId       String
   street       String
   aptNumber    String?
   city         String
@@ -67,7 +76,7 @@ model Product {
 model Cart {
   id           Int        @id @default(autoincrement())
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId       Int        @unique
+  userId       String     @unique
   cartItems    CartItem[]
 }
 
@@ -86,7 +95,7 @@ model Order {
   delivery     Delivery?   @relation(fields: [deliveryId], references: [id], onDelete: Restrict)
   deliveryId   Int?
   user         User        @relation(fields: [userId], references: [id], onDelete: NoAction)
-  userId       Int
+  userId       String
   status       OrderStatus @default(PENDING)
   orderItems  OrderItem[]
 }
@@ -103,4 +112,40 @@ model OrderItem {
 model Delivery {
   id           Int      @id @default(autoincrement())
   orders       Order[]
+}
+
+// NextAuth required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
