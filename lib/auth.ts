@@ -4,7 +4,7 @@ import {getServerSession} from 'next-auth/next'
 export async function getCurrentUser() {
   try {
     const session = await getServerSession(authOptions)
-    return session?.user || null
+    return (session && session.user) || null
   } catch (error) {
     console.error('Error getting current user:', error)
     return null
@@ -12,11 +12,11 @@ export async function getCurrentUser() {
 }
 
 export function isAdmin(user: any) {
-  return user?.role === 'ADMIN';
+  return user && user.role === 'ADMIN';
 }
 
 export function isUser(user: any) {
-  return user?.role === 'USER';
+  return user && user.role === 'USER';
 }
 
 // Mock authentication state for development

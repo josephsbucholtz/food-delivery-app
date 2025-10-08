@@ -35,14 +35,29 @@ export default function SignIn() {
     });
   };
 
-  const handleEmailSignIn = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleEmailSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     
-    // For now, show alert - you'll implement credentials provider later
-    alert(`Email/Password sign-in not yet implemented. Email: ${email}`);
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        alert(`Sign-in failed: ${result.error}`);
+      } else if (result?.ok) {
+        // Redirect to user dashboard on successful login
+        window.location.href = '/home/user';
+      }
+    } catch (error) {
+      console.error('Sign-in error:', error);
+      alert('An error occurred during sign-in. Please try again.');
+    }
   };
 
   return (
