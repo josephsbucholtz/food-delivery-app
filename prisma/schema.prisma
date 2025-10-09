@@ -33,6 +33,7 @@ model User {
   lastName      String?
   email         String            @unique
   phoneNumber   String?
+  password      String?           // For email/password authentication
   role          UserRole          @default(USER)
   addresses     DeliveryAddress[]
   orders        Order[]

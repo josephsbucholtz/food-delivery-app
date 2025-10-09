@@ -1,40 +1,86 @@
 'use client';
 
+import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 
 export default function SignUp() {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    phoneNumber: ''
-  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
+  const handleGoogleSignUp = () => {
+    signIn('google', { 
+      callbackUrl: '/home/user',
+      redirect: true 
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleEmailSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+    setIsLoading(true);
+    setError('');
+
+    const formData = new FormData(e.currentTarget);
+    const userData = {
+      firstName: formData.get('firstName') as string,
+      lastName: formData.get('lastName') as string,
+      email: formData.get('email') as string,
+      phoneNumber: formData.get('phoneNumber') as string,
+      password: formData.get('password') as string,
+      confirmPassword: formData.get('confirmPassword') as string,
+    };
+
     // Basic validation
-    if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+    if (userData.password !== userData.confirmPassword) {
+      setError('Passwords do not match');
+      setIsLoading(false);
       return;
     }
 
-    // This would integrate with your backend API
-    console.log('Sign-up data:', formData);
-    alert('Sign-up functionality will be implemented with your backend API.');
-  };
+    if (userData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setIsLoading(false);
+      return;
+    }
 
-  const handleGoogleSignUp = () => {
-    alert('Google Sign-Up will be implemented once NextAuth is properly configured.');
+    try {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          email: userData.email,
+          phoneNumber: userData.phoneNumber,
+          password: userData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Account created successfully, now sign them in
+        const signInResult = await signIn('credentials', {
+          email: userData.email,
+          password: userData.password,
+          redirect: false,
+        });
+
+        if (signInResult?.ok) {
+          window.location.href = '/home/user';
+        } else {
+          setError('Account created but sign-in failed. Please try signing in manually.');
+        }
+      } else {
+        setError(data.error || 'Failed to create account');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      setError('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -93,45 +139,45 @@ export default function SignUp() {
             </div>
           </div>
 
-          {/* Sign-Up Form */}
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {/* Email/Password Form */}
+          <form className="mt-8 space-y-6" onSubmit={handleEmailSignUp}>
+            {error && (
+              <div className="rounded-md bg-red-50 p-4">
+                <div className="text-sm text-red-700">{error}</div>
+              </div>
+            )}
+
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="firstName" className="sr-only">
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
                     First Name
                   </label>
                   <input
                     id="firstName"
                     name="firstName"
                     type="text"
-                    required
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                    placeholder="First Name"
+                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="First name"
                   />
                 </div>
                 <div>
-                  <label htmlFor="lastName" className="sr-only">
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
                     Last Name
                   </label>
                   <input
                     id="lastName"
                     name="lastName"
                     type="text"
-                    required
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                    placeholder="Last Name"
+                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Last name"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="email" className="sr-only">
-                  Email address
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  Email Address *
                 </label>
                 <input
                   id="email"
@@ -139,32 +185,27 @@ export default function SignUp() {
                   type="email"
                   autoComplete="email"
                   required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="Email address"
                 />
               </div>
 
               <div>
-                <label htmlFor="phoneNumber" className="sr-only">
+                <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
                   Phone Number
                 </label>
                 <input
                   id="phoneNumber"
                   name="phoneNumber"
                   type="tel"
-                  required
-                  value={formData.phoneNumber}
-                  onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Phone Number"
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Phone number"
                 />
               </div>
 
               <div>
-                <label htmlFor="password" className="sr-only">
-                  Password
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password *
                 </label>
                 <input
                   id="password"
@@ -172,16 +213,14 @@ export default function SignUp() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Password"
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Password (min. 6 characters)"
                 />
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="sr-only">
-                  Confirm Password
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                  Confirm Password *
                 </label>
                 <input
                   id="confirmPassword"
@@ -189,19 +228,19 @@ export default function SignUp() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Confirm Password"
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Confirm password"
                 />
               </div>
             </div>
+
             <div>
               <button
                 type="submit"
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={isLoading}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Account
+                {isLoading ? 'Creating Account...' : 'Create Account'}
               </button>
             </div>
           </form>
